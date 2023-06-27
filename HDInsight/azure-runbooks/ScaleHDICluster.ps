@@ -1,0 +1,35 @@
+<#
+    .DESCRIPTION
+        A runbook that scales an HDInsight cluster to a specific number of nodes
+
+    .NOTES
+        AUTHOR: Tom Zeng (tozen@microsoft.com)
+        CREATED: Feb 28, 2023
+        LASTEDIT: Mar 10, 2023
+#>
+workflow ScaleHDICluster
+{
+    param (
+        [Parameter(Mandatory=$true)]
+        [string] $ResourceGroupName,
+        
+        [Parameter(Mandatory=$true)]
+        [string] $ClusterName,
+        
+        [Parameter(Mandatory=$true)]
+        [int] $WorkerNodeCount
+    )
+
+    $TenantId = "72f988bf-86f1-41af-91ab-2d7cd011db47" # replace this with your tenant id
+    $SubscriptionName = "BDHadoopTeamPMTestDemo"       # replace this with your subscription name
+    Connect-AzAccount -Identity -Subscription $SubscriptionName -Tenant $TenantId
+
+    Set-AzHDInsightClusterSize `
+        -ClusterName $ClusterName `
+        -TargetInstanceCount $WorkerNodeCount `
+        -ResourceGroupName $ResourceGroupName
+
+    Write-Output "Successfully scaled the HDInsight cluster to $WorkerNodeCount nodes"
+
+    Disconnect-AzAccount
+}

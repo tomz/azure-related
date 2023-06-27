@@ -1,0 +1,53 @@
+<#
+    .DESCRIPTION
+        A runbook that scales an HDInsight cluster up by a specific number of nodes
+
+    .NOTES
+        AUTHOR: Tom Zeng (tozen@microsoft.com)
+        CREATED: Mar 08, 2023
+        LASTEDIT: Apr 07, 2023
+#>
+workflow ScaleUpHDICluster
+{
+    param (
+        [Parameter(Mandatory=$true)]
+        [string] $ResourceGroupName,
+        
+        [Parameter(Mandatory=$true)]
+        [string] $ClusterName,
+        
+        [Parameter(Mandatory=$true)]
+        [int] $WorkerNodeCount
+    )
+
+    $MAX_NODES = 30 # this could be parameterized
+
+    $TenantId = "72f988bf-86f1-41af-91ab-2d7cd011db47" # replace this with your tenant id
+    $SubscriptionName = "BDHadoopTeamPMTestDemo"       # replace this with your subscription name
+
+    Connect-AzAccount -Identity -Subscription $SubscriptionName -Tenant $TenantId
+
+    $cluster = (Get-AzHDInsightCluster -ClusterName $ClusterName -ResourceGroupName $ResourceGroupName)
+    # get the number of worker nodes. Roles[1] worker nodes Roles[0] head nodes Roles[2] zk nodes
+    $CurrentWorkerNodeCount = $cluster.ComputeProfile.Roles[1].TargetInstanceCount
+    Write-Output $CurrentWorkerNodeCount
+    if ($CurrentWorkerNodeCount -lt $MAX_NODES) {
+        $NewWorkerNodeCount = ($CurrentWorkerNodeCount + $WorkerNodeCount)
+        Write-Output $NewWorkerNodeCount
+
+        if ($NewWorkNodeCount -gt $MAX_NODES) {
+            $NewWorkerNodeCount = $MAX_NODES
+        }
+
+        Set-AzHDInsightClusterSize `
+        -ClusterName $ClusterName `
+        -TargetInstanceCount $NewWorkerNodeCount `
+        -ResourceGroupName $ResourceGroupName
+
+        Write-Output "Successfully scaled up the HDInsight cluster by $WorkerNodeCount nodes to $NewWorkerNodeCount"
+    } else {
+        Write-Output "Already at maximum # of $MAX_NODES nodes, nothing done"       
+    }
+
+    Disconnect-AzAccount
+}
